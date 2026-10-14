@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>自己紹介</title>
+  <style>
+    :root {
+      --bg: #f7f5f2;
+      --card: #ffffff;
+      --text: #2b2a28;
+      --muted: #6b6862;
+      --accent: #c96442;
+      --line: #e6e2dc;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1b1a;
+        --card: #262523;
+        --text: #eeeae4;
+        --muted: #a8a39b;
+        --accent: #e08a6a;
+        --line: #3a3835;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+      line-height: 1.8;
+    }
+    main {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 48px 16px 64px;
+    }
+    header { text-align: center; margin-bottom: 40px; }
+    .avatar {
+      width: 112px;
+      height: 112px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 44px;
+      font-weight: 700;
+    }
+    h1 { margin: 0; font-size: 28px; }
+    .tagline { margin: 4px 0 0; color: var(--muted); }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: var(--accent);
+    }
+    p { margin: 0; }
+    ul { margin: 0; padding-left: 1.2em; }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+    .tags li {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 12px;
+      font-size: 14px;
+    }
+    a { color: var(--accent); }
+    footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 32px; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="avatar" aria-hidden="true">名</div>
+      <h1>名前をここに</h1>
+      <p class="tagline">ひとことキャッチフレーズをここに</p>
+    </header>
+
+    <section>
+      <h2>自己紹介</h2>
+      <p>はじめまして。ここに自己紹介の文章を書きます。どんなことをしているか、どんな人かを2〜3行で紹介しましょう。</p>
+    </section>
+
+    <section>
+      <h2>好きなこと</h2>
+      <ul class="tags">
+        <li>趣味1</li>
+        <li>趣味2</li>
+        <li>趣味3</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>最近やっていること</h2>
+      <ul>
+        <li>Claude Codeでものづくりを始めました</li>
+        <li>ここに最近の取り組みを書きます</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>リンク</h2>
+      <ul>
+        <li><a href="https://github.com/shumai724">GitHub</a></li>
+      </ul>
+    </section>
+
+    <footer>Made with Claude Code</footer>
+  </main>
+</body>
+</html>
