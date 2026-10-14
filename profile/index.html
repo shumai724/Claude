@@ -3,24 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>自己紹介</title>
+  <title>しゅうまい | 自己紹介</title>
   <style>
     :root {
-      --bg: #f7f5f2;
+      --bg: #f3f5f1;
       --card: #ffffff;
-      --text: #2b2a28;
-      --muted: #6b6862;
-      --accent: #c96442;
-      --line: #e6e2dc;
+      --text: #22302a;
+      --muted: #5f6e66;
+      --accent: #1f4d3a;
+      --accent-soft: #e3ece6;
+      --line: #d9e2dc;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #1c1b1a;
-        --card: #262523;
-        --text: #eeeae4;
-        --muted: #a8a39b;
-        --accent: #e08a6a;
-        --line: #3a3835;
+        --bg: #121a16;
+        --card: #1a2620;
+        --text: #e6ece8;
+        --muted: #9fb0a6;
+        --accent: #7fb89a;
+        --accent-soft: #24362d;
+        --line: #2c3d34;
       }
     }
     * { box-sizing: border-box; }
@@ -42,14 +44,14 @@
       height: 112px;
       margin: 0 auto 16px;
       border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
+      background: #1f4d3a;
+      color: #f3f5f1;
       display: grid;
       place-items: center;
       font-size: 44px;
       font-weight: 700;
     }
-    h1 { margin: 0; font-size: 28px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: 0.05em; }
     .tagline { margin: 4px 0 0; color: var(--muted); }
     section {
       background: var(--card);
@@ -65,13 +67,15 @@
     }
     p { margin: 0; }
     ul { margin: 0; padding-left: 1.2em; }
-    .tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
-    .tags li {
-      border: 1px solid var(--line);
+    .facts { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0 0 12px; }
+    .facts li, .tags li {
+      background: var(--accent-soft);
+      color: var(--accent);
       border-radius: 999px;
-      padding: 2px 12px;
+      padding: 2px 14px;
       font-size: 14px;
     }
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
     a { color: var(--accent); }
     footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 32px; }
   </style>
@@ -79,31 +83,32 @@
 <body>
   <main>
     <header>
-      <div class="avatar" aria-hidden="true">名</div>
-      <h1>名前をここに</h1>
-      <p class="tagline">ひとことキャッチフレーズをここに</p>
+      <div class="avatar" aria-hidden="true">し</div>
+      <h1>しゅうまい</h1>
+      <p class="tagline">静岡で暮らす駆け出しエンジニア</p>
     </header>
 
     <section>
       <h2>自己紹介</h2>
-      <p>はじめまして。ここに自己紹介の文章を書きます。どんなことをしているか、どんな人かを2〜3行で紹介しましょう。</p>
+      <ul class="facts">
+        <li>25歳</li>
+        <li>静岡</li>
+        <li>駆け出しエンジニア</li>
+      </ul>
+      <p>はじめまして、しゅうまいです。静岡でエンジニアとしての一歩を踏み出したところです。日々の学びや作ったものを、少しずつここに積み重ねていきます。</p>
     </section>
 
     <section>
       <h2>好きなこと</h2>
       <ul class="tags">
-        <li>趣味1</li>
-        <li>趣味2</li>
-        <li>趣味3</li>
+        <li>音楽</li>
+        <li>ゲーム</li>
       </ul>
     </section>
 
     <section>
       <h2>最近やっていること</h2>
-      <ul>
-        <li>Claude Codeでものづくりを始めました</li>
-        <li>ここに最近の取り組みを書きます</li>
-      </ul>
+      <p>おいしいもの巡り。気になるお店を見つけては、足を運んでいます。</p>
     </section>
 
     <section>
