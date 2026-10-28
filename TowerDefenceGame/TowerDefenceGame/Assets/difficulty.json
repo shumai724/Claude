@@ -1,0 +1,30 @@
+{
+  // 難易度レベルの段階。Lv1 は補正なし（基本のルール）で、このファイルの影響を受けない。
+  // "levels" の1つめが Lv2、2つめが Lv3 … で、それぞれ「1つ前のレベルから変える項目」だけを書く。
+  // 書かなかった項目は1つ前のレベルの値を引き継ぐ。各レベルは1つ下のレベルをクリアすると遊べる。
+  // ステージファイルに "levels": { "3": { ... } } と書くと、そのステージだけ Lv3 以降の項目を上書きできる。
+  //
+  // 書ける項目:
+  //   enemyHpMultiplier / enemySpeedMultiplier     敵の HP・移動速度の倍率
+  //   enemyArmorBonus                              敵の防御力に加える値
+  //   rewardMultiplier / waveBonusMultiplier       敵を倒したときの所持金・ウェーブを凌いだときのボーナスの倍率
+  //   towerCostMultiplier / upgradeCostMultiplier  建設費・強化費の倍率（5G 単位で切り上げ）
+  //   livesMultiplier                              初期ライフの倍率
+  //   blockedTileRatio                             道から2マス以内の草地のうち、建設できない荒れ地にする割合（0〜0.9）
+  "levels": [
+    // Lv2: 敵が少し打たれ強くなる
+    { "enemyHpMultiplier": 1.1 },
+
+    // Lv3: 収入が減る
+    { "rewardMultiplier": 0.85, "waveBonusMultiplier": 0.75 },
+
+    // Lv4: 建設・強化が高くなる
+    { "towerCostMultiplier": 1.1, "upgradeCostMultiplier": 1.15 },
+
+    // Lv5: 敵が速くなり、ライフが減る
+    { "enemySpeedMultiplier": 1.05, "livesMultiplier": 0.7 },
+
+    // Lv6: 荒れ地で建設できる場所が減り、敵もさらに打たれ強くなる
+    { "blockedTileRatio": 0.3, "enemyHpMultiplier": 1.2 }
+  ]
+}

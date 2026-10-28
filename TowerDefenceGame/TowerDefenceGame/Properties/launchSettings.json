@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TowerDefenceGame": {
+      "commandName": "Project"
+    },
+    "プロファイル 1": {
+      "commandName": "Executable"
+    }
+  }
+}

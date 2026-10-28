@@ -1,0 +1,76 @@
+{
+  // layout: '.' 草地 / '#' 道 / 'X' 障害物 / 'S' スタート / 'G' ゴール
+  "name": "岩山の峠",
+  "description": "道が短く、岩で建設できる場所も限られる。ゴーレムの大群をキャノンで迎え撃て。",
+  "difficulty": 3,
+  "tileSize": 40,
+  "initialGold": 220,
+  "initialLives": 15,
+  // 難易度レベルの補正のうち、このステージだけ変える項目（他は difficulty.json の値）。
+  // キーのレベル以降、書いた項目はこの値を使う。
+  // 道が短く資金のやりくりが厳しいステージなので、お金まわりの補正を弱めている。
+  "levels": {
+    "3": { "rewardMultiplier": 1.0, "waveBonusMultiplier": 0.8 },
+    "4": { "towerCostMultiplier": 1.0, "upgradeCostMultiplier": 1.1 },
+    "5": { "enemySpeedMultiplier": 1.0 },
+    "6": { "enemyHpMultiplier": 1.15, "blockedTileRatio": 0.2 }
+  },
+  "layout": [
+    "XXX...XXXX...XXX..XX",
+    "XX..........X......X",
+    "X...######.......X..",
+    "....#....#.....X....",
+    "X...#....#....#####G",
+    "....#..X.#....#.....",
+    "S####....#....#..XX.",
+    "XX.......#....#.....",
+    "XXX..X...#....#..X..",
+    "XX.......#....#.....",
+    "X........######....X",
+    "XX...XX.......X...XX",
+    "XXXX......XXXX....XX"
+  ],
+  "waves": [
+    { "bonus": 25, "hpMultiplier": 1.2, "entries": [ { "enemyType": "Normal", "count": 10, "interval": 0.9 } ] },
+    { "bonus": 25, "hpMultiplier": 1.2, "entries": [ { "enemyType": "Fast", "count": 12, "interval": 0.6 } ] },
+    {
+      "bonus": 30, "hpMultiplier": 1.4,
+      "entries": [
+        { "enemyType": "Tank", "count": 4, "interval": 2.0 },
+        { "enemyType": "Normal", "count": 8, "interval": 0.7, "startDelay": 3 }
+      ]
+    },
+    { "bonus": 30, "hpMultiplier": 1.6, "entries": [ { "enemyType": "Fast", "count": 18, "interval": 0.4 } ] },
+    {
+      "bonus": 35, "hpMultiplier": 1.8,
+      "entries": [
+        { "enemyType": "Tank", "count": 8, "interval": 1.5 },
+        { "enemyType": "Fast", "count": 8, "interval": 0.5, "startDelay": 4 }
+      ]
+    },
+    { "bonus": 35, "hpMultiplier": 2.1, "entries": [ { "enemyType": "Normal", "count": 25, "interval": 0.35 } ] },
+    { "bonus": 40, "hpMultiplier": 2.4, "entries": [ { "enemyType": "Tank", "count": 12, "interval": 1.2 } ] },
+    {
+      "bonus": 40, "hpMultiplier": 2.6,
+      "entries": [
+        { "enemyType": "Fast", "count": 30, "interval": 0.3 },
+        { "enemyType": "Normal", "count": 15, "interval": 0.5, "startDelay": 3 }
+      ]
+    },
+    {
+      "bonus": 45, "hpMultiplier": 3.0,
+      "entries": [
+        { "enemyType": "Tank", "count": 15, "interval": 1.0 },
+        { "enemyType": "Fast", "count": 20, "interval": 0.35, "startDelay": 4 }
+      ]
+    },
+    {
+      "bonus": 0, "hpMultiplier": 3.4,
+      "entries": [
+        { "enemyType": "Tank", "count": 20, "interval": 0.8 },
+        { "enemyType": "Normal", "count": 30, "interval": 0.3, "startDelay": 2 },
+        { "enemyType": "Fast", "count": 30, "interval": 0.25, "startDelay": 8 }
+      ]
+    }
+  ]
+}
