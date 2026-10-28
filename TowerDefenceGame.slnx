@@ -1,0 +1,5 @@
+<Solution>
+  <!-- 先頭が既定のスタートアップ プロジェクト（製品版）。開発者版で起動したいときは TowerDefenceGame.Developer に切り替える -->
+  <Project Path="TowerDefenceGame/TowerDefenceGame.csproj" />
+  <Project Path="TowerDefenceGame.Developer/TowerDefenceGame.Developer.csproj" />
+</Solution>

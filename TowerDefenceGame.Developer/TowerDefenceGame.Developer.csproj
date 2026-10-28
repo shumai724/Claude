@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    開発者版。製品版（TowerDefenceGame）をそのまま参照し、開発者ウィンドウ・bot・ダメージ集計を足して起動する。
+    Visual Studio のスタートアップ プロジェクトをこちらにすると開発者版、TowerDefenceGame にすると製品版が起動する。
+    製品版のプロジェクトはこのプロジェクトを知らないので、製品版に開発者向けのコードは入らない。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TowerDefenceGame.Developer</RootNamespace>
+    <AssemblyName>TowerDefenceGame.Developer</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ステージなどの Assets と NAudio は、製品版から出力フォルダへ引き継がれる -->
+    <ProjectReference Include="..\TowerDefenceGame\TowerDefenceGame.csproj" />
+  </ItemGroup>
+
+</Project>

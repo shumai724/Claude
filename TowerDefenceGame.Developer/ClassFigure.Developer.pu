@@ -1,0 +1,132 @@
+@startuml ClassFigure.Developer
+' 開発者版（TowerDefenceGame.Developer）のクラス図。
+' 製品版（TowerDefenceGame）の型は、ここでは外部のものとして名前だけ載せる。製品版のクラス図は ../TowerDefenceGame/ClassFigure.pu。
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "TowerDefenceGame（製品版）" <<external>> {
+  class GameLauncher
+  class MainForm
+  class GameCanvas
+  class AppController
+  class GameController
+  class Game
+  class World
+  class WaveManager
+  class Tower
+}
+
+package "TowerDefenceGame.Developer" {
+  class Program <<static>> {
+    - {static} Main() : void
+  }
+  note bottom of Program
+    GameLauncher.Run に、開発者用の記録ファイルと
+    DeveloperController を渡して起動する
+  end note
+
+  class DeveloperController {
+    - _settings : DeveloperSettings
+    - _tracker : CombatTracker
+    - _painter : DeveloperPainter
+    - _bot : AutoPlayer
+    - _window : DeveloperWindow
+    - Toggle() : void
+    - OnGameLoaded(game : Game) : void
+    - OnTicked(realDelta : float) : void
+  }
+  note bottom of DeveloperController
+    製品版の汎用イベントだけを使って機能を足す：
+    GameController.GameLoaded / Ticked、GameCanvas.OverlayPainting、MainForm.KeyDown（F12）
+  end note
+
+  class DeveloperWindow {
+    + BotEnabled : bool { get; }
+    + event EnemyCountMultiplierChanged : Action<float>
+    + event CloseRequested : Action
+    + event BotEnabledChanged : Action<bool>
+    + event UnlockAllLevelsChanged : Action<bool>
+    + SetUnlockAllLevels(unlockAll : bool) : void
+    + SetMultiplier(multiplier : float) : void
+    + ShowStats(game : Game?, selected : Tower?, tracker : CombatTracker) : void
+    + ShowBot(status : string, log : IReadOnlyList<string>, logVersion : int) : void
+  }
+
+  class DeveloperPainter {
+    + Draw(renderer : IRenderer, game : Game, tracker : CombatTracker) : void
+  }
+  note bottom of DeveloperPainter : 攻撃タワーの上に総ダメージ、左上に敵数の倍率を描く
+
+  class CombatTracker {
+    + Attach(game : Game) : void
+    + For(tower : Tower) : CombatStats
+  }
+  note bottom of CombatTracker : World.EnemyDamaged・EnemyKilled（Enemy.LastHitBy）・Game.Updated から集計
+
+  class CombatStats {
+    + TotalDamage : long
+    + WaveDamage : long
+    + Kills : int
+    + ActiveSeconds : float
+    + DamagePerSecond : float
+  }
+
+  class DeveloperSettings {
+    + EnemyCountMultiplier : float
+    + UnlockAllLevels : bool
+  }
+
+  class DeveloperSettingsStore {
+    + Load() : DeveloperSettings
+    + Save(settings : DeveloperSettings) : void
+  }
+
+  class DeveloperPaths <<static>> {
+    + {static} Progress : string
+    + {static} Settings : string
+  }
+}
+
+package "TowerDefenceGame.Developer.Bot" {
+  class AutoPlayer {
+    + Enabled : bool
+    + Status : string
+    + Log : IReadOnlyList<string>
+    + Update(game : Game, realDelta : float) : void
+  }
+  note bottom of AutoPlayer
+    目標火力 ＝ 次のウェーブの総HP × 余裕の倍率（1.6〜3.0、漏れたら上げる）。
+    建設・強化の候補を見積もり、1Gあたり一番守りが強くなる手を選ぶ。
+    余裕があれば金鉱・貯金、最終ウェーブ前は使い切る
+  end note
+
+  class DefenseEvaluator {
+    + Evaluate(layout : IReadOnlyList<BotTower>, wave : WaveProfile) : DefenseScore
+  }
+  class RouteSamples
+  class BotTower <<record>>
+  class WaveProfile
+  class DefenseScore <<record struct>>
+}
+
+Program ..> GameLauncher : Run
+Program ..> DeveloperController : <<create>>
+DeveloperController --> GameController
+DeveloperController --> AppController : Progress.UnlockAllLevels / RefreshStageSelect
+DeveloperController --> MainForm
+DeveloperController ..> GameCanvas : OverlayPainting
+DeveloperController *-- DeveloperWindow
+DeveloperController *-- DeveloperPainter
+DeveloperController *-- CombatTracker
+DeveloperController *-- AutoPlayer
+DeveloperController --> DeveloperSettingsStore
+CombatTracker *-- CombatStats
+CombatTracker ..> World : イベント購読
+AutoPlayer ..> Game : 建設・強化・ウェーブ開始
+AutoPlayer *-- DefenseEvaluator
+DefenseEvaluator --> RouteSamples
+DefenseEvaluator ..> BotTower
+DefenseEvaluator ..> WaveProfile
+
+@enduml

@@ -1,0 +1,17 @@
+# ビルドの出力（Visual Studio が毎回作り直すもの）
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio の作業用フォルダと、個人ごとの設定
+.vs/
+*.user
+*.suo
+
+# 一時ファイル・ログ
+*.tmp
+*.log
+
+# OS が作るファイル
+Thumbs.db
+Desktop.ini
+.DS_Store

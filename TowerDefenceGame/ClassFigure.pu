@@ -1,0 +1,1411 @@
+@startuml TowerDefenceGame
+title タワーディフェンスゲーム クラス図（C# / WinForms / MVC）
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+note as Conventions
+  <b>前提</b>
+  ・座標は System.Numerics.Vector2 を使用、deltaTime は秒単位の float
+  ・<b>Models</b> は UI フレームワーク非依存（描画処理を持たない）
+  ・<b>Views</b> は Model を読み取って描画し、ユーザー操作をイベントで通知する
+  ・<b>Controllers</b> は View のイベントを Model への操作に変換し、ゲームループを回す
+  ・WPF に移行する場合は Views のみ差し替える
+end note
+
+' =========================================================
+' Models.Core : ゲーム全体の進行管理
+' =========================================================
+package "Models.Core" {
+  class Game {
+    - _towerFactory : TowerFactory
+    + StageName : string { get; }
+    + Level : int { get; }
+    + State : GameState { get; private set; }
+    + Map : GameMap { get; }
+    + Player : Player { get; }
+    + World : World { get; }
+    + WaveManager : WaveManager { get; }
+    + TowerSpecs : IEnumerable<TowerSpec> { get; }
+    + IsOver : bool { get; }
+    + event StateChanged : Action<GameState>
+    + event TowerPlaced : Action<Tower>
+    + event TowerUpgraded : Action<Tower, UpgradeStat>
+    + event TowerSold : Action<Tower>
+    + Game(stage : StageData, towerFactory : TowerFactory, enemyFactory : EnemyFactory)
+    + Start() : void
+    + Update(deltaTime : float) : void
+    + Pause() : void
+    + Resume() : void
+    + StartNextWave() : bool
+    + GetTowerSpec(type : TowerType) : TowerSpec
+    + GetEnemySpec(type : EnemyType) : EnemySpec
+    + CreatePreview(type : TowerType, cell : GridPos) : Tower
+    + event Updated : Action<float>
+    + GetTowerAt(cell : GridPos) : Tower?
+    + CanPlaceTower(type : TowerType, cell : GridPos) : bool
+    + TryPlaceTower(type : TowerType, cell : GridPos) : bool
+    + CanUpgradeTower(tower : Tower, stat : UpgradeStat) : bool
+    + TryUpgradeTower(tower : Tower, stat : UpgradeStat) : bool
+    + SellTower(tower : Tower) : bool
+    - OnEnemyKilled(enemy : Enemy) : void
+    - OnEnemyReachedGoal(enemy : Enemy) : void
+    - OnWaveCompleted(wave : Wave) : void
+    - CheckEndCondition() : void
+  }
+
+  enum GameState {
+    Ready
+    Playing
+    Paused
+    GameOver
+    StageClear
+  }
+
+  class World {
+    - _towers : List<Tower>
+    - _enemies : List<Enemy>
+    - _projectiles : List<Projectile>
+    + Towers : IReadOnlyList<Tower> { get; }
+    + Enemies : IReadOnlyList<Enemy> { get; }
+    + Projectiles : IReadOnlyList<Projectile> { get; }
+    + HasActiveEnemies : bool { get; }
+    + IsWaveInProgress : bool { get; set; }
+    + event EnemyKilled : Action<Enemy>
+    + event EnemyReachedGoal : Action<Enemy>
+    + event EnemyDamaged : Action<Enemy, Tower?, int>
+    + event ProjectileHit : Action<Projectile>
+    + event GoldGenerated : Action<GoldMine, int>
+    + GetBuffAt(position : Vector2) : TowerBuff
+    + AddTower(tower : Tower) : void
+    + RemoveTower(tower : Tower) : void
+    + AddEnemy(enemy : Enemy) : void
+    + AddProjectile(projectile : Projectile) : void
+    + FindEnemiesInRange(center : Vector2, radius : float) : IEnumerable<Enemy>
+    + Update(deltaTime : float) : void
+    + RemoveInactive() : void
+    ~ NotifyProjectileHit(projectile : Projectile) : void
+    ~ NotifyGoldGenerated(mine : GoldMine, amount : int) : void
+  }
+
+  class Player {
+    + Gold : int { get; private set; }
+    + Lives : int { get; private set; }
+    + Score : int { get; private set; }
+    + IsDead : bool { get; }
+    + event Changed : Action
+    + Player(initialGold : int, initialLives : int)
+    + CanAfford(cost : int) : bool
+    + TrySpend(amount : int) : bool
+    + Earn(amount : int) : void
+    + AddScore(points : int) : void
+    + LoseLife(amount : int) : void
+  }
+}
+
+' =========================================================
+' Models.Map : ステージ・経路
+' =========================================================
+package "Models.Map" {
+  class GridPos <<record struct>> {
+    + Col : int
+    + Row : int
+    + Offset(deltaCol : int, deltaRow : int) : GridPos
+  }
+
+  class GameMap {
+    - _tiles : Tile[,]
+    + Columns : int { get; }
+    + Rows : int { get; }
+    + TileSize : float { get; }
+    + Width : float { get; }
+    + Height : float { get; }
+    + Route : Route { get; }
+    + Tiles : IEnumerable<Tile> { get; }
+    + GameMap(layout : TileType[,], tileSize : float, routeCells : IReadOnlyList<GridPos>)
+    + Contains(cell : GridPos) : bool
+    + GetTile(cell : GridPos) : Tile?
+    + CanBuild(cell : GridPos) : bool
+    + CellToWorld(cell : GridPos) : Vector2
+    + WorldToCell(position : Vector2) : GridPos
+  }
+
+  class Tile {
+    + Cell : GridPos { get; }
+    + Type : TileType { get; }
+    + Tower : Tower? { get; private set; }
+    + IsBuildable : bool { get; }
+    + IsWalkable : bool { get; }
+    + {static} IsWalkableType(type : TileType) : bool
+    + PlaceTower(tower : Tower) : void
+    + RemoveTower() : void
+  }
+
+  enum TileType {
+    Grass
+    Road
+    Obstacle
+    Spawn
+    Goal
+    Wasteland
+  }
+
+  class Route {
+    - _waypoints : List<Vector2>
+    + Count : int { get; }
+    + this[index : int] : Vector2 { get; }
+    + Start : Vector2 { get; }
+    + Goal : Vector2 { get; }
+    + TotalLength : float { get; }
+  }
+  note bottom of Route : System.IO.Path との衝突を避けるため Path から改名
+}
+
+' =========================================================
+' Models.Entities : フィールド上のオブジェクト
+' =========================================================
+package "Models.Entities" {
+  abstract class Entity {
+    + Position : Vector2 { get; protected set; }
+    + IsActive : bool { get; private set; }
+    + {abstract} Update(deltaTime : float, world : World) : void
+    + Deactivate() : void
+  }
+
+  ' ---------- Tower（設置できる建物すべての基底） ----------
+  abstract class Tower {
+    + {static} MaxLevel : int = 5
+    - _levels : Dictionary<UpgradeStat, int>
+    - _invested : int
+    + Spec : TowerSpec { get; }
+    + Cell : GridPos { get; }
+    + UpgradeStats : IReadOnlyList<UpgradeStat> { get; }
+    + Range : float { get; }
+    + MasteredStat : UpgradeStat? { get; }
+    + HighestLevel : int { get; }
+    + SellPrice : int { get; }
+    + GetLevel(stat : UpgradeStat) : int
+    + IsMastered(stat : UpgradeStat) : bool
+    + LevelLimit(stat : UpgradeStat) : int
+    + IsBlockedByMastery(stat : UpgradeStat) : bool
+    + CanUpgrade(stat : UpgradeStat) : bool
+    + GetUpgradeCost(stat : UpgradeStat) : int
+    + Upgrade(stat : UpgradeStat) : void
+    # StatScale(stat : UpgradeStat, growthPerLevel : float) : float
+    # StatPower(stat : UpgradeStat, factorPerLevel : float) : float
+  }
+  note top of Tower
+    建設・強化・売却の共通部分。強化は項目ごとに Lv1〜5。
+    Lv5 にできるのは1項目だけで、他の項目は Lv4 で止まる。
+    費用は基本強化費 ×0.5 / ×1 / ×1.5 / ×3（Lv4→5）
+  end note
+
+  enum UpgradeStat {
+    Damage
+    Range
+    FireRate
+    GoldAmount
+    GoldSpeed
+    BuffPower
+    BuffRange
+  }
+
+  abstract class AttackTower {
+    - _cooldown : float
+    + Target : Enemy? { get; private set; }
+    + Targeting : ITargetingStrategy { get; set; }
+    + Buff : TowerBuff { get; private set; }
+    + Damage : int { get; }
+    + FireInterval : float { get; }
+    + TargetCount : int { get; }
+    # ShotCount : int { get; private set; }
+    # ExtraTargets : int { get; }
+    # FireRateMultiplier : float { get; }
+    + Update(deltaTime : float, world : World) : void
+    # CreateModifiers() : HitModifiers
+    # OnFired(world : World) : void
+    # {abstract} CreateProjectile(target : Enemy, modifiers : HitModifiers) : Projectile
+  }
+  note right of AttackTower
+    強化項目: 攻撃力 / 射程 / 攻撃速度
+    Lv5 効果はタワーごとに異なり、各派生クラスが
+    ExtraTargets / FireRateMultiplier / CreateModifiers /
+    OnFired を上書きして実現する
+  end note
+
+  class HitModifiers <<record struct>> {
+    + PierceArmor : bool
+    + StunDuration : float
+  }
+
+  class StunEffect {
+    + ModifySpeed(speed : float) : float
+  }
+
+  class ArcherTower {
+    - _focusTarget : Enemy?
+    - _focusStacks : int
+    + RapidFireBonus : float { get; }
+  }
+  note bottom of ArcherTower
+    Lv5: 徹甲矢（防御無視）/ 三本矢（3体同時）
+    / 速射（同じ敵を撃ち続けると加速）
+  end note
+  class CannonTower {
+    - _followUpTimer : float
+    + SplashRadius : float { get; }
+  }
+  note bottom of CannonTower
+    Lv5: 衝撃弾（爆風の敵を停止）/ クラスター弾（子弾）
+    / 連装砲（遅れてもう1発）
+  end note
+  class FrostTower {
+    + SlowRate : float { get; }
+    + SlowDuration : float { get; }
+  }
+  note bottom of FrostTower
+    Lv5: 氷結（凍らせて停止）/ ブリザード（周囲も減速）
+    / 凍傷（被ダメージ増加）
+  end note
+  class BreakerTower {
+    + ArmorReduction : int { get; }
+    + MaxArmorReduction : int { get; }
+    + ArmorBreakDuration : float { get; }
+    + AcidDamagePerSecond : float { get; }
+  }
+  note bottom of BreakerTower
+    Lv5: 腐食（防御低下が重なる）/ 酸の飛沫（周囲も防御低下）
+    / 溶解（継続ダメージ）
+  end note
+  class TeslaTower {
+    + ChainCount : int { get; }
+    + ChainRange : float { get; }
+    + ChainFalloff : float { get; }
+    + Branches : int { get; }
+  }
+  note bottom of TeslaTower
+    Lv5: 過電流（減衰なし）/ 分岐雷（2方向に連鎖）
+    / 麻痺（連鎖した敵を停止）
+  end note
+
+  class GoldMine {
+    - _elapsed : float
+    - _waveElapsed : float
+    + GoldAmount : int { get; }
+    + GoldInterval : float { get; }
+    + CurrentInterval : float { get; }
+    + IsRushing : bool { get; }
+    + Progress : float { get; }
+    + LastPayout : int { get; private set; }
+    + PopupTime : float { get; private set; }
+    + Update(deltaTime : float, world : World) : void
+  }
+  note bottom of GoldMine
+    ウェーブ進行中のみ一定間隔でゴールドを産出。
+    強化項目: 産出量 / 産出速度
+    Lv5 効果: 大鉱脈（ウェーブ後に3倍）/ 採掘ラッシュ
+  end note
+
+  class SupportTower {
+    + DamageBonus : float { get; }
+    + FireRateBonus : float { get; }
+    + RangeBonus : float { get; }
+    + ExtraTargets : int { get; }
+    + Covers(position : Vector2) : bool
+  }
+  note bottom of SupportTower
+    範囲内の攻撃タワーを強化（重複時は最大値）。
+    強化項目: 強化量 / 効果範囲
+    Lv5 効果: 鼓舞（射程+15%）/ 索敵網（同時攻撃+1）
+  end note
+
+  class TowerBuff <<record struct>> {
+    + DamageBonus : float
+    + FireRateBonus : float
+    + RangeBonus : float
+    + ExtraTargets : int
+    + IsActive : bool
+  }
+
+  enum TowerType {
+    Archer
+    Cannon
+    Frost
+    Breaker
+    Tesla
+    GoldMine
+    Support
+  }
+
+  ' ---------- Enemy ----------
+  class Enemy {
+    - _route : Route
+    - _effects : List<StatusEffect>
+    - _nextWaypoint : int
+    + Spec : EnemySpec { get; }
+    + MaxHp : int { get; }
+    + Hp : int { get; private set; }
+    + HpRatio : float { get; }
+    + IsDead : bool { get; }
+    + IsSlowed : bool { get; }
+    + IsArmorBroken : bool { get; }
+    + IsStunned : bool { get; }
+    + IsFrostbitten : bool { get; }
+    + IsMelting : bool { get; }
+    + LastHitBy : Tower? { get; }
+    + ArmorBreakReduction : int { get; }
+    + DamageTakenMultiplier : float { get; }
+    + Armor : int { get; }
+    + Progress : float { get; private set; }
+    + CurrentSpeed : float { get; }
+    + event Killed : Action<Enemy>
+    + event Damaged : Action<Enemy, Tower?, int>
+    + event ReachedGoal : Action<Enemy>
+    + Enemy(spec : EnemySpec, route : Route, hpMultiplier : float)
+    + Update(deltaTime : float, world : World) : void
+    + TakeDamage(amount : int, ignoreArmor : bool) : void
+    + AddEffect(effect : StatusEffect) : void
+    - UpdateEffects(deltaTime : float) : void
+    - LoseHp(amount : int) : void
+    ' TakeDamage は防御力を差し引き（最低1）、被ダメージ倍率を掛ける。ignoreArmor は防御無視
+    ' UpdateEffects は状態異常の継続ダメージ（DamagePerSecond）も与える
+    - MoveAlongRoute(deltaTime : float) : void
+  }
+  note right of Enemy
+    敵の種類ごとの差はステータスのみなので
+    サブクラスではなく EnemySpec で表現する
+  end note
+
+  enum EnemyType {
+    Normal
+    Fast
+    Tank
+  }
+
+  ' ---------- Projectile ----------
+  abstract class Projectile {
+    - _aimPoint : Vector2
+    + Target : Enemy { get; }
+    + Damage : int { get; }
+    + Speed : float { get; }
+    + Modifiers : HitModifiers { get; }
+    + Source : Tower? { get; internal set; }
+    + Update(deltaTime : float, world : World) : void
+    # {abstract} OnHit(world : World) : bool
+    # Strike(enemy : Enemy, damage : int) : void
+    # Impact(world : World) : void
+  }
+  note right of Projectile : OnHit が true を返したら World.ProjectileHit を通知
+
+  class Arrow
+  class CannonBall {
+    + SplashRadius : float { get; }
+    + Fragments : int { get; }
+    + IsFragment : bool { get; }
+    - Scatter(world : World) : void
+  }
+  class FrostShot {
+    + SlowRate : float { get; }
+    + SlowDuration : float { get; }
+    + SplashRadius : float { get; }
+    + FrostbiteBonus : float { get; }
+  }
+  class BreakerShot {
+    + ArmorReduction : int { get; }
+    + MaxArmorReduction : int { get; }
+    + Duration : float { get; }
+    + SplashRadius : float { get; }
+    + AcidDamagePerSecond : float { get; }
+  }
+  class LightningBolt {
+    - _segments : List<(Vector2, Vector2)>
+    + Branches : int { get; }
+    + Segments : IReadOnlyList<(Vector2 From, Vector2 To)> { get; }
+    + Fade : float { get; }
+    + Update(deltaTime : float, world : World) : void
+  }
+  note bottom of LightningBolt
+    即着弾し、近くの敵へ ChainCount 回連鎖（Branches 本に分岐可）。
+    経路を表示するため命中後 0.2 秒残る
+  end note
+
+  ' ---------- StatusEffect ----------
+  abstract class StatusEffect {
+    + Duration : float { get; }
+    + Elapsed : float { get; private set; }
+    + Source : Tower? { get; init; }
+    ~ PendingDamage : float
+    + IsExpired : bool { get; }
+    + DamageTakenMultiplier : float { get; }
+    + DamagePerSecond : float { get; }
+    + Update(deltaTime : float) : void
+    + ModifySpeed(speed : float) : float
+    + ModifyArmor(armor : int) : int
+  }
+
+  class FrostbiteEffect {
+    + DamageBonus : float { get; }
+    + DamageTakenMultiplier : float { get; }
+  }
+
+  class AcidEffect {
+    + DamagePerSecond : float { get; }
+  }
+
+  class SlowEffect {
+    + SlowRate : float { get; }
+    + ModifySpeed(speed : float) : float
+  }
+
+  class ArmorBreakEffect {
+    + Reduction : int { get; }
+    + ModifyArmor(armor : int) : int
+  }
+}
+
+' =========================================================
+' Models.Targeting : 攻撃対象選択（Strategy パターン）
+' =========================================================
+package "Models.Targeting" {
+  interface ITargetingStrategy {
+    + Name : string { get; }
+    + SelectTarget(tower : Tower, candidates : IEnumerable<Enemy>) : Enemy?
+  }
+  class FirstTargeting
+  note bottom of FirstTargeting : ゴールに最も近い敵
+  class NearestTargeting
+  note bottom of NearestTargeting : タワーに最も近い敵
+  class StrongestTargeting
+  note bottom of StrongestTargeting : HPが最も高い敵
+
+  class TargetingStrategies <<static>> {
+    + {static} First : ITargetingStrategy
+    + {static} Nearest : ITargetingStrategy
+    + {static} Strongest : ITargetingStrategy
+    + {static} Default : ITargetingStrategy
+    + {static} All : IReadOnlyList<ITargetingStrategy>
+  }
+}
+
+' =========================================================
+' Models.Waves : 敵の出現管理
+' =========================================================
+package "Models.Waves" {
+  class WaveManager {
+    - _waves : IReadOnlyList<Wave>
+    - _enemyFactory : EnemyFactory
+    - _route : Route
+    - _currentIndex : int
+    - _elapsed : float
+    + CurrentWaveNumber : int { get; }
+    + TotalWaves : int { get; }
+    + NextWave : Wave? { get; }
+    + IsWaveInProgress : bool { get; }
+    + HasNextWave : bool { get; }
+    + CanStartNextWave : bool { get; }
+    + AllWavesCleared : bool { get; }
+    + EnemyCountMultiplier : float { get; set; }
+    + RemainingToSpawn : int { get; }
+    + ScaledCount(entry : SpawnEntry) : int
+    + TotalEnemiesOf(wave : Wave) : int
+    + event WaveStarted : Action<Wave>
+    + event WaveCompleted : Action<Wave>
+    + StartNextWave() : bool
+    + Update(deltaTime : float, world : World) : void
+  }
+
+  class Wave <<record>> {
+    + Number : int
+    + Entries : IReadOnlyList<SpawnEntry>
+    + HpMultiplier : float
+    + Bonus : int
+    + TotalEnemies : int
+  }
+
+  class SpawnEntry <<record>> {
+    + EnemyType : EnemyType
+    + Count : int
+    + Interval : float
+    + StartDelay : float
+  }
+}
+
+' =========================================================
+' Models.Data : ステータス定義・ステージ読み込み（JSON）
+' =========================================================
+package "Models.Data" {
+  class TowerSpec <<record>> {
+    + Type : TowerType
+    + Name : string
+    + Description : string
+    + Cost : int
+    + Range : float
+    + Damage : int
+    + FireInterval : float
+    + ProjectileSpeed : float
+    + UpgradeCost : int
+    + MaxLevel : int
+    + SplashRadius : float
+    + SlowRate : float
+    + SlowDuration : float
+    + ArmorReduction : int
+    + ArmorBreakDuration : float
+    + ChainCount : int
+    + ChainRange : float
+    + ChainFalloff : float
+    + GoldAmount : int
+    + GoldInterval : float
+    + DamageBuff : float
+    + FireRateBuff : float
+    + IsAttackTower : bool
+    + Validate() : void
+  }
+  note bottom of TowerSpec : 種類ごとに使う項目だけを JSON に書く（他は 0）
+
+  class EnemySpec <<record>> {
+    + Type : EnemyType
+    + Name : string
+    + MaxHp : int
+    + Speed : float
+    + Reward : int
+    + DamageToBase : int
+    + Armor : int
+    + Validate() : void
+  }
+
+  class StageData <<record>> {
+    + {static} MinDifficulty : int = 1
+    + {static} MaxDifficulty : int = 5
+    + Name : string
+    + Description : string
+    + Difficulty : int
+    + Map : GameMap
+    + Waves : IReadOnlyList<Wave>
+    + InitialGold : int
+    + InitialLives : int
+    + Level : int
+    + LevelOverrides : IReadOnlyDictionary<int, DifficultyOverrides>?
+    + ResolveLevels(commonLevels : IReadOnlyList<DifficultyRules>) : IReadOnlyList<DifficultyRules>
+  }
+
+  class DifficultyRules <<record>> {
+    + {static} NormalLevel : int = 1
+    + {static} Normal : DifficultyRules
+    + Level : int
+    + EnemyHpMultiplier : float
+    + EnemySpeedMultiplier : float
+    + EnemyArmorBonus : int
+    + RewardMultiplier : float
+    + WaveBonusMultiplier : float
+    + TowerCostMultiplier : float
+    + UpgradeCostMultiplier : float
+    + LivesMultiplier : float
+    + BlockedTileRatio : float
+    + {static} LoadLevels(filePath : string) : IReadOnlyList<DifficultyRules>
+    + Apply(spec : EnemySpec) : EnemySpec
+    + Apply(spec : TowerSpec) : TowerSpec
+    + ApplyLives(lives : int) : int
+    + ApplyWaveBonus(bonus : int) : int
+    + Validate() : void
+  }
+  note bottom of DifficultyRules
+    1レベル分の補正。Lv1 は等倍で、Assets/difficulty.json の
+    "levels" を前のレベルに順に重ねて Lv2 以降を作る。
+    定義ファイルは共通のまま、読み込んだ値に補正を掛ける
+  end note
+
+  class DifficultyOverrides <<record>> {
+    + EnemyHpMultiplier : float?
+    + ...（DifficultyRules と同じ項目を nullable で）
+    + ApplyTo(rules : DifficultyRules) : DifficultyRules
+  }
+  note bottom of DifficultyOverrides : 書いた項目だけ上書き（difficulty.json の各段階と、ステージファイルの "levels"）
+
+  class TileBlocker <<static>> {
+    + {static} Block(layout : TileType[,], ratio : float, seed : int) : int
+    + {static} StableSeed(text : string) : int
+  }
+  note bottom of TileBlocker : 道から2マス以内の草地の一部を荒れ地に（ステージごとに固定）
+
+  class StageLoader <<static>> {
+    + {static} Load(filePath : string, rules : DifficultyRules?) : StageData
+  }
+
+  class StageSummary <<record>> {
+    + Id : string
+    + FilePath : string
+    + Data : StageData
+    + Name : string
+  }
+  note bottom of StageSummary
+    選択画面の表示用。プレイ時は FilePath から
+    読み直す（マップのマスが書き換わるため）
+  end note
+
+  class StageCatalog {
+    + Stages : IReadOnlyList<StageSummary> { get; }
+    + Errors : IReadOnlyList<string> { get; }
+    + {static} Load(directory : string) : StageCatalog
+  }
+
+  class SpecLoader <<static>> {
+    + {static} LoadTowerSpecs(filePath : string) : IReadOnlyDictionary<TowerType, TowerSpec>
+    + {static} LoadEnemySpecs(filePath : string) : IReadOnlyDictionary<EnemyType, EnemySpec>
+  }
+
+  class RouteFinder <<static>> {
+    + {static} FindRoute(layout : TileType[,], start : GridPos, goal : GridPos) : IReadOnlyList<GridPos>
+  }
+  note bottom of RouteFinder : 道を幅優先探索し、曲がり角のマスだけを返す
+
+  class JsonFile <<static>> <<internal>> {
+    + {static} Read<T>(filePath : string) : T
+    + {static} Write<T>(filePath : string, value : T) : void
+  }
+
+  class TowerFactory {
+    - _specs : IReadOnlyDictionary<TowerType, TowerSpec>
+    + Specs : IEnumerable<TowerSpec> { get; }
+    + GetSpec(type : TowerType) : TowerSpec
+    + Create(type : TowerType, cell : GridPos, position : Vector2) : Tower
+  }
+
+  class EnemyFactory {
+    - _specs : IReadOnlyDictionary<EnemyType, EnemySpec>
+    + CanCreate(type : EnemyType) : bool
+    + Create(type : EnemyType, route : Route, hpMultiplier : float) : Enemy
+  }
+}
+
+' =========================================================
+' Models.Progress : クリア記録
+' =========================================================
+package "Models.Progress" {
+  class StageRecord <<record>> {
+    + Levels : IReadOnlyDictionary<int, LevelRecord>
+    + LegacyHardCleared : bool
+    + AllLevelsUnlocked : bool <<保存しない>>
+    + Get(level : int) : LevelRecord?
+    + HighestClearedLevel() : int
+    + IsUnlocked(level : int) : bool
+  }
+
+  class ClearReport <<record>> {
+    + StageName : string
+    + Level : int
+    + Score : int
+    + Lives : int
+    + InitialLives : int
+    + TotalWaves : int
+    + IsFirstClear : bool
+    + IsNewBest : bool
+  }
+
+  class LevelRecord <<record>> {
+    + BestScore : int
+    + BestLives : int
+  }
+
+  class ProgressStore {
+    - _filePath : string
+    - _records : Dictionary<string, StageRecord>
+    + {static} DefaultPath : string
+    + UnlockAllLevels : bool { get; set; }
+    + ProgressStore(filePath : string)
+    + Get(stageId : string) : StageRecord?
+    + IsUnlocked(stageId : string, level : int) : bool
+    + RecordClear(stageId : string, level : int, score : int, lives : int) : bool
+    - Save() : void
+  }
+  note bottom of ProgressStore : %LOCALAPPDATA%\TowerDefenceGame\progress.json に保存
+}
+
+' =========================================================
+' Models.Settings : システム設定
+' =========================================================
+package "Models.Settings" {
+  class GameSettings {
+    + Audio : AudioSettings { get; set; }
+  }
+
+  class AudioSettings {
+    + Enabled : bool { get; set; }
+    + MasterVolume : float { get; set; }
+    + CategoryVolumes : Dictionary<SoundCategory, float> { get; set; }
+    + GetCategoryVolume(category : SoundCategory) : float
+    + SetCategoryVolume(category : SoundCategory, volume : float) : void
+    + EffectiveVolume(category : SoundCategory) : float
+    + Clone() : AudioSettings
+    + Normalize() : void
+  }
+  note bottom of AudioSettings : 実効音量 = ON/OFF × マスター × 分類
+
+  enum SoundCategory {
+    Interface
+    Building
+    Hit
+    Enemy
+    Gold
+    Progress
+    Music
+  }
+
+  class SettingsStore {
+    - _filePath : string
+    + {static} DefaultPath : string
+    + Load() : GameSettings
+    + Save(settings : GameSettings) : bool
+  }
+  note bottom of SettingsStore : %LOCALAPPDATA%\TowerDefenceGame\settings.json
+}
+
+' =========================================================
+' Views.Rendering : 描画の抽象化
+' =========================================================
+package "Views.Rendering" {
+  interface IRenderer {
+    + Clear(color : Rgba) : void
+    + FillRect(x : float, y : float, width : float, height : float, color : Rgba) : void
+    + DrawRect(x : float, y : float, width : float, height : float, color : Rgba, thickness : float) : void
+    + FillCircle(center : Vector2, radius : float, color : Rgba) : void
+    + DrawCircle(center : Vector2, radius : float, color : Rgba, thickness : float) : void
+    + DrawLine(from : Vector2, to : Vector2, color : Rgba, thickness : float) : void
+    + DrawText(text : string, position : Vector2, color : Rgba, size : float, anchor : TextAnchor, bold : bool) : void
+  }
+
+  class Rgba <<record struct>> {
+    + R : byte
+    + G : byte
+    + B : byte
+    + A : byte
+    + WithAlpha(alpha : byte) : Rgba
+  }
+
+  enum TextAnchor {
+    TopLeft
+    Center
+    MiddleLeft
+    MiddleRight
+  }
+
+  class GdiRenderer {
+    - _graphics : Graphics?
+    - _brushes : Dictionary<Rgba, SolidBrush>
+    - _pens : Dictionary<(Rgba, float), Pen>
+    - _fonts : Dictionary<(float, bool), Font>
+    + Begin(graphics : Graphics) : void
+    + Dispose() : void
+  }
+  note bottom of GdiRenderer : WinForms (System.Drawing) 実装
+
+  class Palette <<static>> {
+    + {static} ForTile(type : TileType) : Rgba
+    + {static} ForTower(type : TowerType) : Rgba
+    + {static} ForEnemy(type : EnemyType) : Rgba
+  }
+}
+
+' =========================================================
+' Views.Painters : Model を読み取って描画する
+' =========================================================
+package "Views.Painters" {
+  class MapPainter {
+    + Draw(renderer : IRenderer, map : GameMap) : void
+  }
+  class EntityPainter {
+    - _clock : Stopwatch
+    + Draw(renderer : IRenderer, world : World, tileSize : float) : void
+    + {static} EnemyRadius(type : EnemyType) : float
+  }
+  class MasteryPainter <<static>> {
+    + {static} DrawBase(renderer : IRenderer, tower : Tower, p : Vector2, size : float, time : float) : void
+    + {static} DrawAttackTower(renderer : IRenderer, tower : AttackTower, stat : UpgradeStat, p : Vector2, size : float, aim : Vector2, time : float) : void
+    + {static} DrawGoldMine(renderer : IRenderer, mine : GoldMine, stat : UpgradeStat, p : Vector2, size : float, time : float) : void
+    + {static} DrawSupportTower(renderer : IRenderer, stat : UpgradeStat, p : Vector2, size : float, time : float) : void
+  }
+  note bottom of MasteryPainter
+    Lv5 にした建物の見た目。土台が銅色になり、
+    本体は Lv5 効果ごとに形が変わる
+  end note
+  class SelectionPainter {
+    + Draw(renderer : IRenderer, game : Game, input : InputController) : void
+  }
+  class HudPainter {
+    + DrawStatusBar(renderer : IRenderer, game : Game, top : float, width : float, height : float) : void
+    + DrawOverlay(renderer : IRenderer, game : Game, width : float, height : float) : void
+  }
+}
+
+' =========================================================
+' Views.Controls / Views.Forms : WinForms の画面
+' =========================================================
+package "Views.Controls" {
+  class GameCanvas {
+    - _renderer : GdiRenderer
+    + event OverlayPainting : Action<IRenderer, Game>
+    + Bind(game : Game, input : InputController) : void
+    + event CellClicked : Action<GridPos>
+    + event CellHovered : Action<GridPos?>
+    + event CancelRequested : Action
+    # OnPaint(e : PaintEventArgs) : void
+    # OnMouseClick(e : MouseEventArgs) : void
+    # OnMouseMove(e : MouseEventArgs) : void
+  }
+  note bottom of GameCanvas : OptimizedDoubleBuffer でちらつき防止
+
+  class TowerShopPanel {
+    + event TowerTypeSelected : Action<TowerType>
+    + SetTowers(specs : IEnumerable<TowerSpec>) : void
+    + UpdateState(gold : int, selected : TowerType?, enabled : bool) : void
+  }
+
+  class StageSelectView {
+    + event StageSelected : Action<StageSummary, int>
+    + event SettingsRequested : Action
+    + ShowSoundEnabled(enabled : bool) : void
+    + SetStages(stages, progress : ProgressStore, levelsFor : Func<StageSummary, IReadOnlyList<DifficultyRules>>, errors) : void
+  }
+
+  class StageCard {
+    - _record : StageRecord
+    - _levelCount : int
+    - _thumbnail : Bitmap
+    + Stage : StageSummary { get; }
+    + Number : int { get; }
+    + event LevelSelected : Action<int>
+    # OnPaint(e : PaintEventArgs) : void
+    - {static} RenderThumbnail(stage : StageSummary) : Bitmap
+    - {static} DescribeLevel(rules : DifficultyRules, previous : DifficultyRules?) : string
+    - AddLevelButtons(levels : IReadOnlyList<DifficultyRules>) : void
+  }
+  note bottom of StageCard : レベルごとのボタン。1つ下のレベルをクリアで解放、前のレベルから変わる点はツールチップに表示
+  note bottom of StageCard : MapPainter でマップを縮小描画したサムネイル付き
+
+  class TowerInfoPanel {
+    + event UpgradeRequested : Action<UpgradeStat>
+    + event SellRequested : Action
+    + event TargetingSelected : Action<ITargetingStrategy>
+    + ShowTower(tower : Tower?, gold : int, enabled : bool) : void
+  }
+  note bottom of TowerInfoPanel : 強化項目ごとに「Lv・値・強化ボタン」の行を並べる
+
+  class UpgradeTexts <<static>> {
+    + {static} StatName(stat : UpgradeStat) : string
+    + {static} MasteryName(tower : Tower, stat : UpgradeStat) : string
+    + {static} MasteryShort(tower : Tower, stat : UpgradeStat) : string
+    + {static} MasteryDescription(tower : Tower, stat : UpgradeStat) : string
+    + {static} StatValue(tower : Tower, stat : UpgradeStat) : string
+  }
+}
+
+package "Views.Forms" {
+  class MainForm {
+    + StageSelectView : StageSelectView { get; }
+    + Canvas : GameCanvas { get; }
+    + ShopPanel : TowerShopPanel { get; }
+    + InfoPanel : TowerInfoPanel { get; }
+    + event NextWaveRequested : Action
+    + event PauseRequested : Action
+    + event SpeedRequested : Action
+    + event RestartRequested : Action
+    + event CancelRequested : Action
+    + event TowerHotkeyPressed : Action<int>
+    + event SoundToggleRequested : Action
+    + event SettingsRequested : Action
+    + event StageSelectRequested : Action
+    + event ShareRequested : Action
+    + Bind(game : Game, input : InputController) : void
+    + ShowStageSelect() : void
+    + ShowGame() : void
+    + ShowSoundEnabled(enabled : bool) : void
+    + UpdateControls(game : Game, input : InputController, timeScale : float) : void
+    + ShowError(message : string) : void
+    + Confirm(message : string) : bool
+    # ProcessCmdKey(msg : Message, keyData : Keys) : bool
+  }
+}
+
+' =========================================================
+' Views.Audio : 効果音・BGM の合成と出力
+' =========================================================
+package "Views.Audio" {
+  interface ISoundPlayer {
+    + IsAvailable : bool { get; }
+    + Apply(settings : AudioSettings) : void
+    + Play(effect : SoundEffect) : void
+    + PlayMusic(track : MusicTrack) : void
+  }
+
+  class SoundCategories <<static>> {
+    + {static} All : IReadOnlyList<SoundCategory>
+    + {static} Of(effect : SoundEffect) : SoundCategory
+    + {static} DisplayName(category : SoundCategory) : string
+    + {static} Sample(category : SoundCategory) : SoundEffect?
+  }
+
+  enum SoundEffect {
+    Select / Cancel / Rejected
+    TowerPlaced / TowerUpgraded / TowerSold
+    ArrowHit / CannonHit / FrostHit
+    BreakerHit / LightningHit / TowerMastered
+    EnemyKilled / EnemyReachedGoal / GoldGenerated
+    WaveStarted / WaveCompleted
+    GameOver / StageClear
+  }
+
+  class NAudioSoundPlayer {
+    - _output : WaveOutEvent
+    - _mixer : MixingSampleProvider
+    - _sounds : Dictionary<SoundEffect, float[]>
+    - _lastPlayed : Dictionary<SoundEffect, double>
+    - _gains : Dictionary<SoundCategory, float>
+    - _music : MusicChannel
+    - _musicTracks : Dictionary<MusicTrack, Task<float[]?>>
+    + {static} TryCreate() : NAudioSoundPlayer?
+    + Apply(settings : AudioSettings) : void
+    + Play(effect : SoundEffect) : void
+    + PlayMusic(track : MusicTrack) : void
+  }
+  note bottom of NAudioSoundPlayer
+    全効果音と BGM を1本の出力にミキシングして同時再生。
+    命中音などは同じ音の最短間隔で間引く。
+    BGM は起動時に裏で合成しておく
+  end note
+
+  class NullSoundPlayer
+  note bottom of NullSoundPlayer : 音声デバイスが無い環境用
+
+  class SoundLibrary <<static>> {
+    + {static} Create(effect : SoundEffect, sampleRate : int) : float[]
+  }
+
+  class SoundBuilder {
+    + Tone(start, duration, fromHz, toHz, waveform, volume, decay) : SoundBuilder
+    + Noise(start, duration, volume, brightness, decay) : SoundBuilder
+    + Arpeggio(start, step, frequencies, waveform, volume, lastDuration) : SoundBuilder
+    + Build(targetPeak : float) : float[]
+  }
+
+  enum Waveform {
+    Sine
+    Square
+    Triangle
+    Saw
+  }
+
+  enum MusicTrack {
+    None
+    StageSelect
+    Battle
+  }
+
+  class MusicLibrary <<static>> {
+    + {static} Create(track : MusicTrack, sampleRate : int) : float[]?
+  }
+  note bottom of MusicLibrary : 楽譜（旋律・和音・ドラム）から BGM を合成
+
+  class MusicBuilder {
+    + {static} Frequency(midiNote : int) : float
+    + {static} ParseNote(name : string) : int
+    + Note(step, steps, midiNote, waveform, volume, decay) : MusicBuilder
+    + Melody(startStep, notation, stepsPerSymbol, waveform, volume, decay) : MusicBuilder
+    + Kick(step, volume) : MusicBuilder
+    + Snare(step, volume) : MusicBuilder
+    + HiHat(step, volume) : MusicBuilder
+    + Build(targetPeak : float) : float[]
+  }
+  note bottom of MusicBuilder : 末尾からはみ出した余韻は先頭に回り込ませ、ループのつなぎ目を自然にする
+
+  class MusicChannel <<internal>> {
+    + Volume : float { set; }
+    + Change(samples : float[]?) : void
+    + Read(buffer : float[], offset : int, count : int) : int
+  }
+  note bottom of MusicChannel : 1曲をループ再生。切り替えはフェードアウト→フェードイン
+
+  class CachedSoundSampleProvider <<internal>> {
+    - _gain : float
+    + Read(buffer : float[], offset : int, count : int) : int
+  }
+}
+
+package "Views.Forms" {
+  class SettingsDialog {
+    - _settings : AudioSettings
+    + Settings : AudioSettings { get; }
+    + event PreviewChanged : Action<AudioSettings>
+    + event SampleRequested : Action<SoundEffect>
+    + SettingsDialog(settings : AudioSettings, audioAvailable : bool)
+  }
+  note bottom of SettingsDialog
+    ON/OFF・マスター・分類ごとの音量スライダー。
+    スライダーを離すと試聴、初期値に戻す / OK / キャンセル
+  end note
+}
+
+package "System.Windows.Forms" <<external>> {
+  class Form
+  class Control
+  class UserControl
+}
+
+' =========================================================
+' Controllers
+' =========================================================
+package "Views.Sharing" {
+  class XShare <<static>> {
+    + {static} Hashtag : string
+    + {static} ComposeText(report : ClearReport) : string
+    + {static} BuildUrl(text : string) : string
+    + {static} TryOpen(text : string) : bool
+  }
+  note bottom of XShare : X の Web Intent（文面入りの投稿画面）をブラウザで開く。API キー不要
+}
+
+' =========================================================
+' 起動（製品版の Program と、開発者版の Program の両方から使う）
+' =========================================================
+package "TowerDefenceGame" {
+  class GameLauncher <<static>> {
+    + {static} Run(options : GameLaunchOptions, extend : Func<MainForm, AppController, IDisposable?>?) : void
+  }
+  note bottom of GameLauncher
+    画面と Controller を組み立てて起動する。
+    extend は開発者版が機能を足すための口で、製品版では使わない
+  end note
+
+  class GameLaunchOptions <<record>> {
+    + ProgressPath : string
+    + SettingsPath : string
+  }
+}
+
+package "Controllers" {
+  class AppController {
+    - _view : MainForm
+    - _stageSelect : StageSelectController
+    - _gameController : GameController
+    - _settings : SettingsController
+    - _sound : ISoundPlayer
+    + AppController(view : MainForm, assetsDirectory : string, sound : ISoundPlayer, progress : ProgressStore, settingsStore : SettingsStore)
+    + GameController : GameController { get; }
+    + Progress : ProgressStore { get; }
+    + RefreshStageSelect() : void
+    + Start() : bool
+    - OnStageChosen(stage : StageSummary) : void
+    - ShowStageSelect() : void
+    - OnStageCleared(stage : StageSummary, game : Game) : void
+    - OpenSettings() : void
+  }
+
+  class SettingsController {
+    - _player : ISoundPlayer
+    - _store : SettingsStore
+    - _settings : GameSettings
+    + SoundEnabled : bool { get; }
+    + event Changed : Action
+    + Save() : void
+    + ShowDialog(owner : IWin32Window) : void
+    + ToggleSound() : void
+  }
+  note bottom of SettingsController
+    編集中はすぐ音に反映し、OK で保存、
+    キャンセルで元に戻す
+  end note
+  note top of AppController : 画面遷移（ステージ選択 ⇔ ゲーム）を管理する
+
+  class StageSelectController {
+    - _view : StageSelectView
+    - _stagesDirectory : string
+    - _difficultyPath : string
+    - _progress : ProgressStore
+    - _levels : Dictionary<string, IReadOnlyList<DifficultyRules>>
+    + event StageChosen : Action<StageSummary, DifficultyRules>
+    + Refresh() : bool
+    + RecordClear(stage : StageSummary, level : int, score : int, lives : int) : void
+    - ResolveLevels(stages, errors) : void
+  }
+
+  class GameController {
+    - _view : MainForm
+    - _input : InputController
+    - _sound : SoundController
+    - _clock : GameClock
+    - _timer : System.Windows.Forms.Timer
+    - _stage : StageSummary?
+    - _rules : DifficultyRules
+    - _game : Game?
+    - _timeScale : float
+    + event ExitRequested : Action
+    + event StageCleared : Action<StageSummary, Game>
+    + event GameLoaded : Action<Game>
+    + CurrentGame : Game? { get; }
+    + SelectedTower : Tower? { get; }
+    + GameController(view : MainForm, assetsDirectory : string, soundPlayer : ISoundPlayer)
+    + StartStage(stage : StageSummary, rules : DifficultyRules) : bool
+    + Stop() : void
+    + PauseIfPlaying() : bool
+    + ResumeIf(wasPlaying : bool) : void
+    + Dispose() : void
+    - TryLoadGame() : bool
+    - OnTick(sender : object?, e : EventArgs) : void
+    - RefreshView() : void
+  }
+
+  class InputController {
+    - _game : Game?
+    + SelectedTowerType : TowerType? { get; private set; }
+    + SelectedTower : Tower? { get; private set; }
+    + HoverCell : GridPos? { get; private set; }
+    + event SelectionChanged : Action
+    + event Feedback : Action<InputFeedback>
+    + Attach(game : Game) : void
+    + SelectTowerType(type : TowerType) : void
+    + HandleCellClick(cell : GridPos) : void
+    + SetHoverCell(cell : GridPos?) : void
+    + CancelSelection() : void
+    + UpgradeSelectedTower(stat : UpgradeStat) : void
+    + SellSelectedTower() : void
+    + SetTargeting(strategy : ITargetingStrategy) : void
+  }
+
+  class GameClock {
+    - _stopwatch : Stopwatch
+    - _last : TimeSpan
+    + Reset() : void
+    + Tick() : float
+  }
+
+  enum InputFeedback {
+    Selected
+    Cancelled
+    Rejected
+  }
+
+  class SoundController {
+    - _player : ISoundPlayer
+    - _game : Game?
+    + IsEnabled : bool { get; set; }
+    + SoundController(player : ISoundPlayer, input : InputController)
+    + Attach(game : Game) : void
+    + Play(effect : SoundEffect) : void
+  }
+  note bottom of SoundController
+    Game / World / WaveManager / InputController の
+    イベントを購読し、対応する SoundEffect を鳴らす
+  end note
+}
+
+' =========================================================
+' 関連
+' =========================================================
+
+' --- Core ---
+Game --> GameState
+Game *-- "1" World
+Game *-- "1" Player
+Game o-- "1" GameMap
+Game *-- "1" WaveManager
+Game --> TowerFactory
+Game ..> StageData : <<use>>
+
+World o-- "0..*" Tower
+World o-- "0..*" Enemy
+World o-- "0..*" Projectile
+
+' --- Map ---
+GameMap *-- "1..*" Tile
+GameMap *-- "1" Route
+Tile --> TileType
+Tile o-- "0..1" Tower
+
+' --- Entities ---
+Entity <|-- Tower
+Entity <|-- Enemy
+Entity <|-- Projectile
+
+Tower <|-- AttackTower
+Tower <|-- GoldMine
+Tower <|-- SupportTower
+AttackTower <|-- ArcherTower
+AttackTower <|-- CannonTower
+AttackTower <|-- FrostTower
+AttackTower <|-- BreakerTower
+AttackTower <|-- TeslaTower
+Tower --> "1" TowerSpec
+AttackTower --> "0..1" Enemy : target
+AttackTower o-- "1" ITargetingStrategy
+AttackTower --> TowerBuff
+World ..> SupportTower : GetBuffAt
+GoldMine ..> World : NotifyGoldGenerated
+
+Enemy --> "1" EnemySpec
+Enemy --> "1" Route : 移動経路
+Enemy *-- "0..*" StatusEffect
+
+Projectile <|-- Arrow
+Projectile <|-- CannonBall
+Projectile <|-- FrostShot
+Projectile <|-- BreakerShot
+Projectile <|-- LightningBolt
+Projectile --> "1" Enemy : target
+
+ArcherTower ..> Arrow : <<create>>
+CannonTower ..> CannonBall : <<create>>
+FrostTower ..> FrostShot : <<create>>
+BreakerTower ..> BreakerShot : <<create>>
+TeslaTower ..> LightningBolt : <<create>>
+FrostShot ..> SlowEffect : <<create>>
+FrostShot ..> FrostbiteEffect : <<create>>
+BreakerShot ..> ArmorBreakEffect : <<create>>
+BreakerShot ..> AcidEffect : <<create>>
+CannonBall ..> CannonBall : <<create>> 子弾
+
+StatusEffect <|-- SlowEffect
+StatusEffect <|-- ArmorBreakEffect
+StatusEffect <|-- StunEffect
+StatusEffect <|-- FrostbiteEffect
+StatusEffect <|-- AcidEffect
+Tower --> UpgradeStat
+AttackTower ..> HitModifiers : <<create>>
+Projectile --> HitModifiers
+Projectile ..> StunEffect : <<create>>
+TowerInfoPanel ..> UpgradeTexts : <<use>>
+
+' --- Targeting ---
+ITargetingStrategy <|.. FirstTargeting
+ITargetingStrategy <|.. NearestTargeting
+ITargetingStrategy <|.. StrongestTargeting
+TargetingStrategies ..> ITargetingStrategy
+
+' --- Waves ---
+WaveManager o-- "1..*" Wave
+Wave *-- "1..*" SpawnEntry
+SpawnEntry --> EnemyType
+WaveManager --> EnemyFactory
+WaveManager --> Route
+
+' --- Data ---
+TowerSpec --> TowerType
+EnemySpec --> EnemyType
+StageLoader ..> StageData : <<create>>
+StageLoader ..> RouteFinder : <<use>>
+StageLoader ..> JsonFile : <<use>>
+SpecLoader ..> JsonFile : <<use>>
+StageData o-- GameMap
+StageData o-- "1..*" Wave
+TowerFactory ..> Tower : <<create>>
+EnemyFactory ..> Enemy : <<create>>
+
+' --- Views ---
+IRenderer <|.. GdiRenderer
+IRenderer ..> Rgba
+IRenderer ..> TextAnchor
+
+MapPainter ..> IRenderer
+EntityPainter ..> IRenderer
+SelectionPainter ..> IRenderer
+HudPainter ..> IRenderer
+MapPainter ..> GameMap : 読み取り
+EntityPainter ..> World : 読み取り
+SelectionPainter ..> InputController : 読み取り
+HudPainter ..> Game : 読み取り
+
+Form <|-- MainForm
+Control <|-- GameCanvas
+UserControl <|-- TowerShopPanel
+UserControl <|-- TowerInfoPanel
+
+MainForm *-- GameCanvas
+MainForm *-- TowerShopPanel
+MainForm *-- TowerInfoPanel
+GameCanvas *-- GdiRenderer
+GameCanvas *-- MapPainter
+GameCanvas *-- EntityPainter
+EntityPainter ..> MasteryPainter : Lv5 の建物
+GameCanvas *-- SelectionPainter
+GameCanvas *-- HudPainter
+
+' --- Controllers ---
+GameController --> MainForm : イベント購読・表示更新
+GameController *-- InputController
+GameController *-- GameClock
+GameController --> Game : Update / 操作
+GameController ..> StageLoader : <<use>>
+GameController ..> SpecLoader : <<use>>
+InputController --> Game : 操作
+InputController ..> InputFeedback
+
+' --- ステージ選択 ---
+StageCatalog o-- "0..*" StageSummary
+StageCatalog ..> StageLoader : <<use>>
+StageSummary o-- StageData
+ProgressStore o-- "0..*" StageRecord
+StageRecord o-- "0..*" LevelRecord
+ProgressStore ..> JsonFile : <<use>>
+
+UserControl <|-- StageSelectView
+Control <|-- StageCard
+MainForm *-- StageSelectView
+StageSelectView *-- "0..*" StageCard
+StageCard ..> MapPainter : サムネイル描画
+StageCard ..> StageRecord : 読み取り
+
+AppController *-- StageSelectController
+AppController *-- GameController
+AppController --> MainForm : 画面切り替え
+StageSelectController --> StageSelectView
+StageSelectController ..> StageCatalog : <<use>>
+StageSelectController --> ProgressStore
+GameController ..> StageSummary : 選択されたステージ
+
+' --- 難易度 ---
+DifficultyOverrides ..> DifficultyRules : 上書き
+StageData o-- "0..*" DifficultyOverrides
+StageLoader ..> DifficultyRules : <<use>>
+StageLoader ..> TileBlocker : <<use>>
+StageSelectController ..> DifficultyRules : 共通 + ステージ上書き
+GameController --> DifficultyRules : 定義に補正を適用
+StageRecord ..> DifficultyRules : NormalLevel
+
+' --- 設定 ---
+GameSettings *-- AudioSettings
+GameLauncher ..> AppController : <<create>>
+GameLauncher ..> GameLaunchOptions
+AppController ..> XShare : クリア結果を共有
+XShare ..> ClearReport
+Projectile --> Tower : Source
+StatusEffect --> Tower : Source
+AudioSettings ..> SoundCategory
+SettingsStore ..> GameSettings : 読み書き
+SettingsStore ..> JsonFile : <<use>>
+AppController *-- SettingsController
+SettingsController --> SettingsStore
+SettingsController --> ISoundPlayer : Apply
+SettingsController ..> SettingsDialog : <<create>>
+SettingsDialog ..> AudioSettings : 編集
+SoundCategories ..> SoundCategory
+Form <|-- SettingsDialog
+
+' --- Audio ---
+ISoundPlayer <|.. NAudioSoundPlayer
+ISoundPlayer <|.. NullSoundPlayer
+ISoundPlayer ..> SoundEffect
+NAudioSoundPlayer ..> SoundLibrary : 起動時に全効果音を合成
+NAudioSoundPlayer ..> CachedSoundSampleProvider : <<create>>
+SoundLibrary ..> SoundBuilder : <<use>>
+SoundBuilder ..> Waveform
+ISoundPlayer ..> MusicTrack
+NAudioSoundPlayer *-- MusicChannel
+NAudioSoundPlayer ..> MusicLibrary : 起動時に裏で BGM を合成
+MusicLibrary ..> MusicBuilder : <<use>>
+MusicBuilder ..> SoundBuilder : 波形を共用
+
+GameController *-- SoundController
+SoundController --> ISoundPlayer
+SoundController ..> Game : イベント購読
+AppController --> ISoundPlayer : ステージ選択の BGM
+SoundController ..> InputController : Feedback 購読
+
+@enduml

@@ -1,0 +1,27 @@
+[
+  {
+    "type": "Normal",
+    "name": "スライム",
+    "maxHp": 40,
+    "speed": 55,
+    "reward": 6,
+    "damageToBase": 1
+  },
+  {
+    "type": "Fast",
+    "name": "コウモリ",
+    "maxHp": 25,
+    "speed": 100,
+    "reward": 7,
+    "damageToBase": 1
+  },
+  {
+    "type": "Tank",
+    "name": "ゴーレム",
+    "maxHp": 160,
+    "speed": 32,
+    "reward": 15,
+    "damageToBase": 3,
+    "armor": 5
+  }
+]
