@@ -1,0 +1,78 @@
+{
+  // layout: '.' 草地 / '#' 道 / 'X' 障害物 / 'S' スタート / 'G' ゴール
+  "name": "決戦の迷宮",
+  "description": "中心のゴールへ渦を巻く迷宮。資金もライフも少ない中、15ウェーブを耐え抜け。",
+  "difficulty": 4,
+  "tileSize": 40,
+  "initialGold": 120,
+  "initialLives": 10,
+  "layout": [
+    "....................",
+    "S##################.",
+    "..................#.",
+    ".################.#.",
+    ".#..............#.#.",
+    ".#.############.#.#.",
+    ".#.#..........#.#.#.",
+    ".#.#..G########.#.#.",
+    ".#.#............#.#.",
+    ".#.##############.#.",
+    ".#................#.",
+    ".##################.",
+    "...................."
+  ],
+  "waves": [
+    { "bonus": 25, "entries": [ { "enemyType": "Normal", "count": 10, "interval": 1.0 } ] },
+    { "bonus": 20, "hpMultiplier": 1.4, "entries": [ { "enemyType": "Fast", "count": 15, "interval": 0.5 } ] },
+    {
+      "bonus": 25, "hpMultiplier": 1.6,
+      "entries": [
+        { "enemyType": "Tank", "count": 5, "interval": 1.8 },
+        { "enemyType": "Normal", "count": 10, "interval": 0.6, "startDelay": 3 }
+      ]
+    },
+    { "bonus": 25, "hpMultiplier": 1.8, "entries": [ { "enemyType": "Fast", "count": 25, "interval": 0.35 } ] },
+    { "bonus": 30, "hpMultiplier": 2.0, "entries": [ { "enemyType": "Normal", "count": 30, "interval": 0.3 } ] },
+    { "bonus": 30, "hpMultiplier": 2.3, "entries": [ { "enemyType": "Tank", "count": 10, "interval": 1.2 } ] },
+    {
+      "bonus": 35, "hpMultiplier": 2.6,
+      "entries": [
+        { "enemyType": "Fast", "count": 30, "interval": 0.3 },
+        { "enemyType": "Tank", "count": 5, "interval": 1.5, "startDelay": 6 }
+      ]
+    },
+    { "bonus": 35, "hpMultiplier": 3.0, "entries": [ { "enemyType": "Normal", "count": 40, "interval": 0.25 } ] },
+    { "bonus": 40, "hpMultiplier": 3.3, "entries": [ { "enemyType": "Tank", "count": 15, "interval": 1.0 } ] },
+    {
+      "bonus": 40, "hpMultiplier": 3.6,
+      "entries": [
+        { "enemyType": "Fast", "count": 40, "interval": 0.22 },
+        { "enemyType": "Normal", "count": 20, "interval": 0.4, "startDelay": 4 }
+      ]
+    },
+    {
+      "bonus": 45, "hpMultiplier": 4.0,
+      "entries": [
+        { "enemyType": "Tank", "count": 18, "interval": 0.9 },
+        { "enemyType": "Fast", "count": 20, "interval": 0.3, "startDelay": 5 }
+      ]
+    },
+    { "bonus": 45, "hpMultiplier": 4.4, "entries": [ { "enemyType": "Normal", "count": 50, "interval": 0.2 } ] },
+    { "bonus": 50, "hpMultiplier": 4.8, "entries": [ { "enemyType": "Tank", "count": 25, "interval": 0.8 } ] },
+    {
+      "bonus": 50, "hpMultiplier": 5.2,
+      "entries": [
+        { "enemyType": "Fast", "count": 50, "interval": 0.18 },
+        { "enemyType": "Tank", "count": 15, "interval": 1.0, "startDelay": 5 }
+      ]
+    },
+    {
+      "bonus": 0, "hpMultiplier": 6.0,
+      "entries": [
+        { "enemyType": "Tank", "count": 30, "interval": 0.6 },
+        { "enemyType": "Fast", "count": 40, "interval": 0.2, "startDelay": 3 },
+        { "enemyType": "Normal", "count": 40, "interval": 0.25, "startDelay": 6 }
+      ]
+    }
+  ]
+}

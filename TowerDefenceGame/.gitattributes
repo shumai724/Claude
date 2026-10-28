@@ -1,0 +1,13 @@
+# テキストファイルは、リポジトリには LF で保存し、Windows で取り出すときは Git の設定に合わせる。
+# （Windows と他の環境の間で、改行コードだけが違う「変更」が出ないようにする）
+* text=auto
+
+# C# の差分を見やすくする
+*.cs diff=csharp
+
+# 画像・音声などはテキストとして扱わない
+*.png binary
+*.jpg binary
+*.ico binary
+*.wav binary
+*.mp3 binary

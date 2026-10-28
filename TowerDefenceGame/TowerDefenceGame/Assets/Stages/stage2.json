@@ -1,0 +1,87 @@
+{
+  // layout: '.' 草地 / '#' 道 / 'X' 障害物 / 'S' スタート / 'G' ゴール
+  "name": "砂漠の蛇行路",
+  "description": "長く折り返す道。素早いコウモリの群れが多いので、フロストで足止めしよう。",
+  "difficulty": 2,
+  "tileSize": 40,
+  "initialGold": 160,
+  "initialLives": 20,
+  "layout": [
+    "....................",
+    "S#################..",
+    ".................#..",
+    "..X..............#..",
+    "..################..",
+    "..#.......X.........",
+    "..#.................",
+    "..################..",
+    "...X.............#..",
+    ".................#..",
+    ".................##G",
+    "......X.............",
+    "...................."
+  ],
+  "waves": [
+    { "bonus": 20, "entries": [ { "enemyType": "Normal", "count": 10, "interval": 0.9 } ] },
+    { "bonus": 20, "entries": [ { "enemyType": "Fast", "count": 10, "interval": 0.6 } ] },
+    {
+      "bonus": 25, "hpMultiplier": 1.1,
+      "entries": [
+        { "enemyType": "Normal", "count": 12, "interval": 0.7 },
+        { "enemyType": "Fast", "count": 6, "interval": 0.5, "startDelay": 5 }
+      ]
+    },
+    {
+      "bonus": 25, "hpMultiplier": 1.2,
+      "entries": [
+        { "enemyType": "Tank", "count": 4, "interval": 2.0 },
+        { "enemyType": "Normal", "count": 10, "interval": 0.6, "startDelay": 2 }
+      ]
+    },
+    { "bonus": 30, "hpMultiplier": 1.4, "entries": [ { "enemyType": "Fast", "count": 20, "interval": 0.35 } ] },
+    {
+      "bonus": 30, "hpMultiplier": 1.5,
+      "entries": [
+        { "enemyType": "Normal", "count": 20, "interval": 0.45 },
+        { "enemyType": "Tank", "count": 5, "interval": 1.8, "startDelay": 4 }
+      ]
+    },
+    {
+      "bonus": 35, "hpMultiplier": 1.7,
+      "entries": [
+        { "enemyType": "Tank", "count": 8, "interval": 1.4 },
+        { "enemyType": "Fast", "count": 12, "interval": 0.4, "startDelay": 3 }
+      ]
+    },
+    { "bonus": 35, "hpMultiplier": 2.0, "entries": [ { "enemyType": "Normal", "count": 30, "interval": 0.3 } ] },
+    {
+      "bonus": 40, "hpMultiplier": 2.2,
+      "entries": [
+        { "enemyType": "Fast", "count": 30, "interval": 0.3 },
+        { "enemyType": "Tank", "count": 6, "interval": 1.5, "startDelay": 5 }
+      ]
+    },
+    {
+      "bonus": 40, "hpMultiplier": 2.5,
+      "entries": [
+        { "enemyType": "Tank", "count": 12, "interval": 1.0 },
+        { "enemyType": "Normal", "count": 20, "interval": 0.4, "startDelay": 2 }
+      ]
+    },
+    {
+      "bonus": 45, "hpMultiplier": 2.8,
+      "entries": [
+        { "enemyType": "Fast", "count": 35, "interval": 0.25 },
+        { "enemyType": "Tank", "count": 8, "interval": 1.2, "startDelay": 4 }
+      ]
+    },
+    {
+      "bonus": 0, "hpMultiplier": 3.2,
+      "entries": [
+        { "enemyType": "Tank", "count": 20, "interval": 0.8 },
+        { "enemyType": "Fast", "count": 30, "interval": 0.3, "startDelay": 3 },
+        { "enemyType": "Normal", "count": 20, "interval": 0.4, "startDelay": 6 }
+      ]
+    }
+  ]
+}
